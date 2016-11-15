@@ -338,11 +338,6 @@ public class TwitchWSIRCParser {
                 }
             }
         }
-
-        /* Check if the message is a command */
-        if (message.startsWith("!")) {
-            commandEvent(message, username, tagsMap);
-        }
         
         /* Moderate the incoming message. Have it run in the background on a thread. */
         try {
@@ -350,6 +345,11 @@ public class TwitchWSIRCParser {
             new Thread(moderationRunnable).start();
         } catch (Exception ex) {
             scriptEventManager.runDirect(new IrcModerationEvent(this.session, username, message, this.channel, tagsMap));
+        }
+
+        /* Check if the message is a command */
+        if (message.startsWith("!")) {
+            commandEvent(message, username, tagsMap);
         }
 
         /* Send the message to the scripts. */
@@ -417,6 +417,13 @@ public class TwitchWSIRCParser {
         if (message.equals("Error logging in") || message.equals("Login authentication failed")) {
             com.gmt2001.Console.out.println();
             com.gmt2001.Console.out.println("Twitch Inidicated Login Failed. Check OAUTH password.");
+            com.gmt2001.Console.out.println("Exiting PhantomBot.");
+            com.gmt2001.Console.out.println();
+            System.exit(0);
+            return;
+        } else if (message.equals("Invalid NICK")) {
+            com.gmt2001.Console.out.println();
+            com.gmt2001.Console.out.println("Twitch Inidicated Invalid Bot Name. Check 'user' setting in botlogin.txt");
             com.gmt2001.Console.out.println("Exiting PhantomBot.");
             com.gmt2001.Console.out.println();
             System.exit(0);

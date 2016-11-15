@@ -26,6 +26,8 @@
         timeout = false,
         interval;
 
+    $.announceFollows = false; // for the discord handler
+
     /**
      * Used by the panel for reloading the script variables.
      *
@@ -79,7 +81,11 @@
             follows.push(message);
             if (!timer) {
                 timer = true;
-                setTimeout(function() { interval = setInterval(function() { run(); }, 3e2); }, 1e2);
+                setTimeout(function() { 
+                    interval = setInterval(function() { 
+                        run(); 
+                    }, 3e2); 
+                }, 1e2);
             }
         }
     };
@@ -101,7 +107,7 @@
         for (i in follows) {
             if (!running && ($.systemTime() - lastFollow) > (followDelay * 1e3)) {
                 running = true;
-                $.say(follows[i]);
+                $.say(follows[i].replace('/w', ' /w'));
                 lastFollow = $.systemTime();
                 follows.splice(i, 1);
                 running = false;
@@ -115,6 +121,7 @@
      * @event twitchFollowsInitialized
      */
     $.bind('twitchFollowsInitialized', function() {
+        $.announceFollows = true;//for the discord handler.
         if (!$.bot.isModuleEnabled('./handlers/followHandler.js')) {
             return;
         }
@@ -159,10 +166,10 @@
                         }, 8e3);
                     }
                     lastFollowTime = $.systemTime();//last follow was here, save this time for later.
+                    $.inidb.set('streamInfo', 'lastFollow', $.username.resolve(follower));//set the follower name in the db for the panel to read.
                 }
 
                 $.setIniDbBoolean('followed', follower, true);//set the follower as followed.
-                $.inidb.set('streamInfo', 'lastFollow', $.username.resolve(follower));//set the follower name in the db for the panel to read.
                 /** Give points to the user if the caster wants to. */
                 if (followReward > 0) {
                     $.inidb.incr('points', follower, followReward);

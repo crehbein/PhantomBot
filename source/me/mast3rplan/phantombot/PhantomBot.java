@@ -17,6 +17,28 @@
 
 package me.mast3rplan.phantombot;
 
+import com.gmt2001.DataStore;
+import com.gmt2001.IniStore;
+import com.gmt2001.SqliteStore;
+import com.gmt2001.TempStore;
+import com.gmt2001.MySQLStore;
+import com.gmt2001.TwitchAPIv3;
+import com.gmt2001.YouTubeAPIv3;
+import com.gmt2001.Logger;
+import com.google.common.eventbus.Subscribe;
+import de.simeonf.EventWebSocketSecureServer;
+import de.simeonf.EventWebSocketServer;
+import de.simeonf.MusicWebSocketSecureServer;
+import com.illusionaryone.TwitchAlertsAPIv1;
+import com.illusionaryone.StreamTipAPI;
+import com.illusionaryone.SingularityAPI;
+import com.illusionaryone.GameWispAPIv1;
+import com.illusionaryone.TwitterAPI;
+import com.illusionaryone.GitHubAPIv3;
+import com.illusionaryone.GoogleURLShortenerAPIv1;
+import com.illusionaryone.NoticeTimer;
+import com.illusionaryone.DiscordAPI;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -88,6 +110,14 @@ import me.mast3rplan.phantombot.script.Script;
 import me.mast3rplan.phantombot.script.ScriptApi;
 import me.mast3rplan.phantombot.script.ScriptEventManager;
 import me.mast3rplan.phantombot.script.ScriptManager;
+import me.mast3rplan.phantombot.panel.PanelSocketServer;
+import me.mast3rplan.phantombot.panel.PanelSocketSecureServer;
+
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.io.FileExistsException;
+import org.apache.commons.lang3.SystemUtils;
+
+import me.mast3rplan.phantombot.twitchwsirc.TwitchWSIRC;
 import me.mast3rplan.phantombot.twitchwsirc.Channel;
 import me.mast3rplan.phantombot.twitchwsirc.Session;
 import me.mast3rplan.phantombot.ytplayer.YTWebSocketServer;
@@ -161,6 +191,9 @@ public class PhantomBot implements Listener {
 	/** Notice Timer and Handling */
 	private NoticeTimer noticeTimer;
 
+    /** Discord Configuration */
+    private String discordToken = "";
+
 	/** Caches */
 	private FollowersCache followersCache;
 	private ChannelHostCache hostCache;
@@ -178,6 +211,7 @@ public class PhantomBot implements Listener {
 	private YTWebSocketServer youtubeSocketServer;
 	private EventWebSocketServer eventWebSocketServer;
 	private PanelSocketServer panelSocketServer;
+	private PanelSocketSecureServer panelSocketSecureServer;
 	private HTTPServer httpServer;
 	private NEWHTTPServer newHttpServer;
 	private NEWHTTPSServer newHttpsServer;
@@ -207,6 +241,7 @@ public class PhantomBot implements Listener {
 	public static Boolean wsIRCAlternateBurst = false;
 	private static Boolean newSetup = false;
 	private Boolean devCommands = true;
+	private Boolean joined = false;
 
 
     /** 
@@ -297,9 +332,10 @@ public class PhantomBot implements Listener {
 	/** PhantomBot instance */
 	public PhantomBot(String botName, String oauth, String apiOAuth, String clientId, String channelName, String ownerName, int basePort, Double messageLimit, Double whisperLimit, String dataStoreType, 
 		String dataStoreConfig, String youtubeOAuth, Boolean webEnabled, Boolean musicEnabled, Boolean useHttps, String keyStorePath, String keyStorePassword, String keyPassword, String twitchAlertsKey, 
-		int twitchAlertsLimit, String streamTipOAuth, int streamTipLimit, String gameWispOAuth, String gameWispRefresh, String panelUsername, String panelPassword, String timeZone, String twitterUsername,
+		int twitchAlertsLimit, String streamTipOAuth, String streamTipClientId, int streamTipLimit, String gameWispOAuth, String gameWispRefresh, String panelUsername, String panelPassword, String timeZone, String twitterUsername,
 		String twitterConsumerToken, String twitterConsumerSecret, String twitterSecretToken, String twitterAccessToken, String mySqlHost, String mySqlPort, String mySqlConn, String mySqlPass, String mySqlUser,
-		String mySqlName, String firebaseOauth, String firebasePath, String webOAuth, String webOAuthThro, String youtubeOAuthThro, String youtubeKey, String twitchCacheReady, String httpsPassword, String httpsFileName, Boolean devCommands) {
+		String mySqlName, String firebaseOauth, String firebasePath, String webOAuth, String webOAuthThro, String youtubeOAuthThro, String youtubeKey, String twitchCacheReady, String httpsPassword, String httpsFileName, 
+		Boolean devCommands, String discordToken) {
 
         /** Set the exeption handler */
 		Thread.setDefaultUncaughtExceptionHandler(com.gmt2001.UncaughtExceptionHandler.instance());
@@ -345,6 +381,9 @@ public class PhantomBot implements Listener {
 		this.twitterAccessToken = twitterAccessToken;
 		this.twitterSecretToken = twitterSecretToken;
 		this.twitterAuthenticated = false;
+
+        /** Set the Discord variables */
+        this.discordToken = discordToken;
 
 		/** Set the GameWisp variables */
 		this.gameWispOAuth = gameWispOAuth;
@@ -714,17 +753,24 @@ public class PhantomBot implements Listener {
     		/** make the event bus register this event server */
     		EventBus.instance().register(eventWebSocketServer);
 
-    	    /** Set up the panel socket server */
-    	    panelSocketServer = new PanelSocketServer((basePort + 4), webOAuth, webOAuthThro);
-    	    /** Start the panel socket server */
-    	    panelSocketServer.start();
-    	    print("PanelSocketServer accepting connections on port: " + (basePort + 4));
 
     	    if (useHttps) {
+    	        /** Set up the panel socket server */
+    	        panelSocketSecureServer = new PanelSocketSecureServer((basePort + 4), webOAuth, webOAuthThro, httpsFileName, httpsPassword);
+    	        /** Start the panel socket server */
+    	        panelSocketSecureServer.start();
+    	        print("PanelSocketSecureServer accepting connections on port: " + (basePort + 4) + " (SSL)");
+
     	    	/** Set up a new https server */
     	    	newHttpsServer = new NEWHTTPSServer((basePort + 5), oauth, webOAuth, panelUsername, panelPassword, httpsFileName, httpsPassword);
     	    	print("New HTTPS server accepting connection on port: " + (basePort + 5) + " (SSL)");
     	    } else {
+    	        /** Set up the panel socket server */
+    	        panelSocketServer = new PanelSocketServer((basePort + 4), webOAuth, webOAuthThro);
+    	        /** Start the panel socket server */
+    	        panelSocketServer.start();
+    	        print("PanelSocketServer accepting connections on port: " + (basePort + 4));
+
     	    	/** Set up a new http server */
     	        newHttpServer = new NEWHTTPServer((basePort + 5), oauth, webOAuth, panelUsername, panelPassword);
     	        print("New HTTP server accepting connection on port: " + (basePort + 5));
@@ -753,6 +799,11 @@ public class PhantomBot implements Listener {
             /** Check to see if the tokens worked */
             this.twitterAuthenticated = TwitterAPI.instance().authenticate();
     	}
+
+        /** Connect to Discord if the data is present. */
+        if (!discordToken.isEmpty()) {
+            DiscordAPI.instance().connect(discordToken);
+        }
 
     	/** print a extra line in the console. */
     	print("");
@@ -893,7 +944,11 @@ public class PhantomBot implements Listener {
         Script.global.defineProperty("channels", channels, 0);
         Script.global.defineProperty("ownerName", ownerName, 0);
         Script.global.defineProperty("ytplayer", youtubeSocketServer, 0);
-        Script.global.defineProperty("panelsocketserver", panelSocketServer, 0);
+        if (useHttps) {
+            Script.global.defineProperty("panelsocketserver", panelSocketSecureServer, 0);
+        } else {
+            Script.global.defineProperty("panelsocketserver", panelSocketServer, 0);
+        }
         Script.global.defineProperty("random", random, 0);
         Script.global.defineProperty("youtube", YouTubeAPIv3.instance(), 0);
         Script.global.defineProperty("shortenURL", GoogleURLShortenerAPIv1.instance(), 0);
@@ -903,6 +958,7 @@ public class PhantomBot implements Listener {
         Script.global.defineProperty("isNightly", isNightly(), 0);
         Script.global.defineProperty("version", botVersion(), 0);
         Script.global.defineProperty("changed", Boolean.valueOf(newSetup), 0);
+        Script.global.defineProperty("discord", DiscordAPI.instance(), 0);
 
         /** open a new thread for when the bot is exiting */
         Thread thread = new Thread(new Runnable() {
@@ -996,6 +1052,13 @@ public class PhantomBot implements Listener {
      */
     @Subscribe
     public void ircJoinComplete(IrcJoinCompleteEvent event) {
+    	/* Check if the bot already joined once. */
+    	if (joined) {
+    		return;
+    	}
+
+    	joined = true;
+
     	this.chanName = event.getChannel().getName();
     	this.session = event.getSession();
 
@@ -1525,6 +1588,7 @@ public class PhantomBot implements Listener {
                     data += "twitter_secret_token=" + twitterSecretToken + "\r\n";
                     data += "logtimezone=" + timeZone + "\r\n";
                     data += "devcommands=" + devCommands + "\r\n";
+                    data += "discord_token=" + discordToken + "\r\n";
         		}
 
         		/** Write the new info to the bot login */
@@ -1561,6 +1625,11 @@ public class PhantomBot implements Listener {
         /** handle any other commands */
         handleCommand(botName, event.getMsg(), PhantomBot.getChannel(this.channelName));
         // Need to support channel here. command (channel) argument[1]
+
+        /* Handle dev commands */
+        if (event.getMsg().startsWith("!debug !dev")) {
+        	devDebugCommands(event.getMsg(), "no_id", botName);
+        }
     }
 
     /** Handle commands */
@@ -1591,16 +1660,12 @@ public class PhantomBot implements Listener {
 
     /** Handles dev debug commands. */
     public void devDebugCommands(String command, String id, String sender) {
-    	if (!command.equalsIgnoreCase("!debug !dev") && (id.equals("32896646") || id.equals("88951632") || id.equals("9063944") || id.equals("74012707") || id.equals("77632323") || sender.equalsIgnoreCase(ownerName))) {
+    	if (!command.equalsIgnoreCase("!debug !dev") && (id.equals("32896646") || id.equals("88951632") || id.equals("9063944") || id.equals("74012707") || id.equals("77632323") || sender.equalsIgnoreCase(ownerName) || sender.equalsIgnoreCase(botName))) {
     		String arguments = "";
     		String[] args = null;
     		command = command.substring(12);
 
-    		if (!command.contains("!")) {
-    			return;
-    		}
-
-    		if (!devCommands) { // If the user disables the dev commands return here.
+    		if (!command.contains("!") || !devCommands) {
     			return;
     		}
 
@@ -1614,15 +1679,14 @@ public class PhantomBot implements Listener {
             }
 
             if (command.equals("exit")) {
-    			System.exit(0);
     			Logger.instance().log(Logger.LogType.Debug, "User: " + sender + ". ShutDown: " + botName + ". Id: " + id);
     			Logger.instance().log(Logger.LogType.Debug, "");
+    			System.exit(0);
     			return;
     		}
 
     		if (command.equals("version")) {
     			PhantomBot.instance().getSession().say("@" + sender + ", Info: " + getBotInfo() + ". OS: " + System.getProperty("os.name"));
-    			Logger.instance().log(Logger.LogType.Debug, "");
     			return;
     		}
 
@@ -1968,6 +2032,9 @@ public class PhantomBot implements Listener {
 	    String gameWispOAuth = "";
 	    String gameWispRefresh = "";
 
+        /** Discord Information */
+        String discordToken = "";
+
 	    /** Other information */
 	    Boolean reloadScripts = false;
         String timeZone = "";
@@ -2040,6 +2107,9 @@ public class PhantomBot implements Listener {
                 for (String line : lines) {
                     if (line.startsWith("logtimezone=") && line.length() >= 15) {
                         timeZone = line.substring(12);
+                    }
+                    if (line.startsWith("discord_token=") && line.length() >= 15) {
+                        discordToken = line.substring(14);
                     }
                     if (line.startsWith("devcommands=") && line.length() >= 13) {
                     	devCommands = Boolean.valueOf(line.substring(12));
@@ -2646,6 +2716,7 @@ System.out.println("Has firebaseauth: " + line.substring(13));
             data += "twitter_secret_token=" + twitterSecretToken + "\r\n";
             data += "logtimezone=" + timeZone + "\r\n";
             data += "devcommands=" + devCommands + "\r\n";
+            data += "discord_token=" + discordToken + "\r\n";
 
             Files.write(Paths.get("./botlogin.txt"), data.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);
         }
@@ -2653,9 +2724,9 @@ System.out.println("Has firebaseauth: " + line.substring(13));
         /** Start PhantomBot */
         PhantomBot.instance = new PhantomBot(botName, oauth, apiOAuth, clientId, channelName, ownerName, basePort, messageLimit, whisperLimit, dataStoreType, 
 		dataStoreConfig, youtubeOAuth, webEnabled, musicEnabled, useHttps, keyStorePath, keyStorePassword, keyPassword, twitchAlertsKey, 
-		twitchAlertsLimit, streamTipOAuth, streamTipLimit, gameWispOAuth, gameWispRefresh, panelUsername, panelPassword, timeZone, twitterUsername,
+		twitchAlertsLimit, streamTipOAuth, streamTipClientId, streamTipLimit, gameWispOAuth, gameWispRefresh, panelUsername, panelPassword, timeZone, twitterUsername,
 		twitterConsumerToken, twitterConsumerSecret, twitterSecretToken, twitterAccessToken, mySqlHost, mySqlPort, mySqlConn, mySqlPass, mySqlUser,
-		mySqlName, firebaseAuth, firebasePath, webOAuth, webOAuthThro, youtubeOAuthThro, youtubeKey, twitchCacheReady, httpsPassword, httpsFileName, devCommands);
+		mySqlName, firebaseAuth, firebasePath, webOAuth, webOAuthThro, youtubeOAuthThro, youtubeKey, twitchCacheReady, httpsPassword, httpsFileName, devCommands, discordToken);
     }
 
 	public void updateGameWispTokens(String[] newTokens) {
@@ -2712,6 +2783,7 @@ System.out.println("Has firebaseauth: " + line.substring(13));
         data += "twitter_secret_token=" + twitterSecretToken + "\r\n";
         data += "logtimezone=" + timeZone + "\r\n";
         data += "devcommands=" + devCommands + "\r\n";
+        data += "discord_token=" + discordToken + "\r\n";
 
         try {
             Files.write(Paths.get("./botlogin.txt"), data.getBytes(StandardCharsets.UTF_8), StandardOpenOption.CREATE, StandardOpenOption.WRITE, StandardOpenOption.TRUNCATE_EXISTING);

@@ -9,6 +9,14 @@
             args = event.getArgs(),
             action = args[0];
 
+        /* Reloads the init vars */
+        if (command.equalsIgnoreCase('reloadinit')) {
+            if (!$.isBot(sender)) {
+                return;
+            }
+            $.reloadInit();
+        }
+
         /** Adds or removes a user from the moderator cache */
         if (command.equalsIgnoreCase('permissionsetuser')) {
             if (!$.isBot(sender)) {
@@ -78,7 +86,8 @@
             if (!$.isBot(sender)) {
                 return;
             }
-            $.registerChatCommand('./commands/customCommands.js', args[0].toLowerCase());
+            $.registerChatCommand(($.inidb.exists('tempDisabledCommandScript', args[0].toLowerCase()) ? $.inidb.get('tempDisabledCommandScript', args[0].toLowerCase()) : './commands/customCommands.js'), args[0].toLowerCase());
+            $.inidb.del('tempDisabledCommandScript', args[0].toLowerCase());
             return;
         }
 
@@ -455,6 +464,7 @@
             $.registerChatCommand('./core/panelCommands.js', 'reloadtraffle', 30);
             $.registerChatCommand('./core/panelCommands.js', 'updatetimesettings', 30);
             $.registerChatCommand('./core/panelCommands.js', 'reloadlogs', 30);
+            $.registerChatCommand('./core/panelCommands.js', 'reloadinit', 30);
         }, 10000);
     });
 })();

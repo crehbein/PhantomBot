@@ -1,6 +1,6 @@
 
 
-# <img alt="PhantomBot" src="https://i.zelakto.tv/7ZSJO3D.png" />
+# <img alt="PhantomBot" src="https://i.zelakto.tv/hTWdxKG.png" />
 
  [ ![Build Status](https://travis-ci.org/PhantomBot/PhantomBot.svg?branch=master)](https://travis-ci.org/PhantomBot/PhantomBot) 
  [<img src="https://discordapp.com/api/guilds/107910097937682432/widget.png?style=shield">](https://discord.gg/Xdh5SRY)  
@@ -33,7 +33,7 @@ Additional functionality is enabled through the use of third-party modules.
 
 PhantomBot requires the following software to be installed:
 
-* [Java 7/8](https://www.java.com/en/download/)
+* [Java 8](https://www.java.com/en/download/)
 
 ## Installation
 Please refer to platform-specific installation documentation.
@@ -43,7 +43,7 @@ Please refer to platform-specific installation documentation.
 
 ## Upgrading PhantomBot
 
-Detailed upgrade instructions are listed on our [documentation](https://docs.phantombot.tv/how-to/How-to-Update).
+Detailed upgrade instructions are listed on our [documentation](https://docs.phantombot.tv/kb/update).
 
 ## License
 
