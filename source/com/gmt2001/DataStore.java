@@ -217,7 +217,7 @@ public class DataStore {
     public void CreateIndexes() {
     }
 
-    public Connection CreateConnection(String db, String user, String pass) {
+    public Object CreateConnection(String db, String user, String pass) {
         return null;
     }
 

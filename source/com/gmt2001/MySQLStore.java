@@ -60,7 +60,7 @@ public class MySQLStore extends DataStore {
     }
 
     @Override
-    public Connection CreateConnection(String db, String user, String pass) {
+    public Object CreateConnection(String db, String user, String pass) {
         this.db = db;
         this.user = user;
         this.pass = pass;
@@ -93,7 +93,7 @@ public class MySQLStore extends DataStore {
     private void CheckConnection() {
         try {
             if (connection == null || connection.isClosed() || !connection.isValid(10)) {
-                connection = CreateConnection(db, user, pass);
+                connection = (Connection)CreateConnection(db, user, pass);
             }
         } catch (SQLException ex) {
             com.gmt2001.Console.err.printStackTrace(ex);

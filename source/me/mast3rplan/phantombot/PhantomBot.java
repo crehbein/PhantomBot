@@ -17,31 +17,9 @@
 
 package me.mast3rplan.phantombot;
 
-import com.gmt2001.DataStore;
-import com.gmt2001.IniStore;
-import com.gmt2001.SqliteStore;
-import com.gmt2001.TempStore;
-import com.gmt2001.MySQLStore;
-import com.gmt2001.TwitchAPIv3;
-import com.gmt2001.YouTubeAPIv3;
-import com.gmt2001.Logger;
-import com.google.common.eventbus.Subscribe;
-import de.simeonf.EventWebSocketSecureServer;
-import de.simeonf.EventWebSocketServer;
-import de.simeonf.MusicWebSocketSecureServer;
-import com.illusionaryone.TwitchAlertsAPIv1;
-import com.illusionaryone.StreamTipAPI;
-import com.illusionaryone.SingularityAPI;
-import com.illusionaryone.GameWispAPIv1;
-import com.illusionaryone.TwitterAPI;
-import com.illusionaryone.GitHubAPIv3;
-import com.illusionaryone.GoogleURLShortenerAPIv1;
-import com.illusionaryone.NoticeTimer;
-
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.io.FileNotFoundException;
 import java.io.PrintStream;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -50,65 +28,69 @@ import java.nio.file.StandardOpenOption;
 import java.security.SecureRandom;
 import java.util.HashMap;
 import java.util.Map.Entry;
-import java.util.TreeMap;
-import java.util.TreeSet;
-
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
-import java.security.SecureRandom;
-import java.math.BigInteger;
+import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.SystemUtils;
 
+import com.gmt2001.DataStore;
+import com.gmt2001.FirebaseStore;
+import com.gmt2001.IniStore;
+import com.gmt2001.Logger;
+import com.gmt2001.MySQLStore;
+import com.gmt2001.SqliteStore;
+import com.gmt2001.TwitchAPIv3;
+import com.gmt2001.YouTubeAPIv3;
+import com.google.common.eventbus.Subscribe;
+import com.illusionaryone.GameWispAPIv1;
+import com.illusionaryone.GitHubAPIv3;
+import com.illusionaryone.GoogleURLShortenerAPIv1;
+import com.illusionaryone.NoticeTimer;
+import com.illusionaryone.SingularityAPI;
+import com.illusionaryone.StreamTipAPI;
+import com.illusionaryone.TwitchAlertsAPIv1;
+import com.illusionaryone.TwitterAPI;
+
+import de.simeonf.EventWebSocketServer;
 import me.mast3rplan.phantombot.cache.ChannelHostCache;
 import me.mast3rplan.phantombot.cache.ChannelUsersCache;
-import me.mast3rplan.phantombot.cache.FollowersCache;
-import me.mast3rplan.phantombot.cache.SubscribersCache;
-import me.mast3rplan.phantombot.cache.UsernameCache;
 import me.mast3rplan.phantombot.cache.DonationsCache;
-import me.mast3rplan.phantombot.cache.StreamTipCache;
 import me.mast3rplan.phantombot.cache.EmotesCache;
-import me.mast3rplan.phantombot.cache.TwitterCache;
+import me.mast3rplan.phantombot.cache.FollowersCache;
+import me.mast3rplan.phantombot.cache.StreamTipCache;
+import me.mast3rplan.phantombot.cache.SubscribersCache;
 import me.mast3rplan.phantombot.cache.TwitchCache;
+import me.mast3rplan.phantombot.cache.TwitterCache;
+import me.mast3rplan.phantombot.cache.UsernameCache;
 import me.mast3rplan.phantombot.console.ConsoleInputListener;
 import me.mast3rplan.phantombot.event.EventBus;
 import me.mast3rplan.phantombot.event.Listener;
+import me.mast3rplan.phantombot.event.bits.BitsEvent;
 import me.mast3rplan.phantombot.event.command.CommandEvent;
-import me.mast3rplan.phantombot.event.devcommand.DeveloperCommandEvent;
 import me.mast3rplan.phantombot.event.console.ConsoleInputEvent;
+import me.mast3rplan.phantombot.event.devcommand.DeveloperCommandEvent;
+import me.mast3rplan.phantombot.event.gamewisp.GameWispAnniversaryEvent;
+import me.mast3rplan.phantombot.event.gamewisp.GameWispSubscribeEvent;
 import me.mast3rplan.phantombot.event.irc.channel.IrcChannelUserModeEvent;
-import me.mast3rplan.phantombot.event.irc.complete.IrcConnectCompleteEvent;
 import me.mast3rplan.phantombot.event.irc.complete.IrcJoinCompleteEvent;
 import me.mast3rplan.phantombot.event.irc.message.IrcChannelMessageEvent;
 import me.mast3rplan.phantombot.event.irc.message.IrcPrivateMessageEvent;
-import me.mast3rplan.phantombot.event.twitch.host.TwitchHostedEvent;
-import me.mast3rplan.phantombot.event.twitch.online.TwitchOnlineEvent;
-import me.mast3rplan.phantombot.event.twitch.offline.TwitchOfflineEvent;
-import me.mast3rplan.phantombot.event.twitch.follower.TwitchFollowEvent;
-import me.mast3rplan.phantombot.event.streamtip.donate.StreamTipDonationEvent;
-import me.mast3rplan.phantombot.event.gamewisp.GameWispChangeEvent;
-import me.mast3rplan.phantombot.event.gamewisp.GameWispBenefitsEvent;
-import me.mast3rplan.phantombot.event.gamewisp.GameWispSubscribeEvent;
-import me.mast3rplan.phantombot.event.gamewisp.GameWispAnniversaryEvent;
 import me.mast3rplan.phantombot.event.subscribers.NewReSubscriberEvent;
 import me.mast3rplan.phantombot.event.subscribers.NewSubscriberEvent;
-import me.mast3rplan.phantombot.event.bits.BitsEvent;
-import me.mast3rplan.phantombot.musicplayer.MusicWebSocketServer;
-import me.mast3rplan.phantombot.ytplayer.YTWebSocketServer;
+import me.mast3rplan.phantombot.event.twitch.follower.TwitchFollowEvent;
+import me.mast3rplan.phantombot.event.twitch.host.TwitchHostedEvent;
+import me.mast3rplan.phantombot.event.twitch.offline.TwitchOfflineEvent;
+import me.mast3rplan.phantombot.event.twitch.online.TwitchOnlineEvent;
+import me.mast3rplan.phantombot.panel.PanelSocketServer;
 import me.mast3rplan.phantombot.script.Script;
 import me.mast3rplan.phantombot.script.ScriptApi;
 import me.mast3rplan.phantombot.script.ScriptEventManager;
 import me.mast3rplan.phantombot.script.ScriptManager;
-import me.mast3rplan.phantombot.panel.PanelSocketServer;
-
-import org.apache.commons.io.FileUtils;
-import org.apache.commons.io.FileExistsException;
-import org.apache.commons.lang3.SystemUtils;
-
-import me.mast3rplan.phantombot.twitchwsirc.TwitchWSIRC;
 import me.mast3rplan.phantombot.twitchwsirc.Channel;
 import me.mast3rplan.phantombot.twitchwsirc.Session;
-import java.net.URI;
+import me.mast3rplan.phantombot.ytplayer.YTWebSocketServer;
 
 public class PhantomBot implements Listener {
 	/** Bot Information */
@@ -150,6 +132,10 @@ public class PhantomBot implements Listener {
 	private String mySqlName;
 	private String mySqlUser;
 	private String mySqlPass;
+	
+	/** Firebase information */
+	private String firebaseOauth;
+	private String firebasePath;
 
 	/** Twitter Information */
 	private String twitterUsername;
@@ -313,7 +299,7 @@ public class PhantomBot implements Listener {
 		String dataStoreConfig, String youtubeOAuth, Boolean webEnabled, Boolean musicEnabled, Boolean useHttps, String keyStorePath, String keyStorePassword, String keyPassword, String twitchAlertsKey, 
 		int twitchAlertsLimit, String streamTipOAuth, int streamTipLimit, String gameWispOAuth, String gameWispRefresh, String panelUsername, String panelPassword, String timeZone, String twitterUsername,
 		String twitterConsumerToken, String twitterConsumerSecret, String twitterSecretToken, String twitterAccessToken, String mySqlHost, String mySqlPort, String mySqlConn, String mySqlPass, String mySqlUser,
-		String mySqlName, String webOAuth, String webOAuthThro, String youtubeOAuthThro, String youtubeKey, String twitchCacheReady, String httpsPassword, String httpsFileName, Boolean devCommands) {
+		String mySqlName, String firebaseOauth, String firebasePath, String webOAuth, String webOAuthThro, String youtubeOAuthThro, String youtubeKey, String twitchCacheReady, String httpsPassword, String httpsFileName, Boolean devCommands) {
 
         /** Set the exeption handler */
 		Thread.setDefaultUncaughtExceptionHandler(com.gmt2001.UncaughtExceptionHandler.instance());
@@ -381,6 +367,10 @@ public class PhantomBot implements Listener {
 		this.mySqlHost = mySqlHost;
 		this.mySqlPort = mySqlPort;
 
+		/** Set the Firebase variables */
+		this.firebaseOauth = firebaseOauth;
+		this.firebasePath = firebasePath;
+		
 		/** twitch cache */
 		PhantomBot.twitchCacheReady = "false";
 
@@ -469,6 +459,25 @@ public class PhantomBot implements Listener {
             } else if (SqliteStore.instance().GetFileList().length > 0) {
                 sqlite2MySql();
             }
+            
+		} else if ("firebasestore".equalsIgnoreCase(dataStoreType)) {
+			
+			if (IniStore.instance().GetFileList().length > 0) {
+				ini2Sqlite(true);
+			}
+			
+			if (SqliteStore.instance().GetFileList().length > 0) {
+				sqlite2Firebase();
+			}
+			
+			dataStore = FirebaseStore.instance(firebaseOauth, firebasePath);
+			
+			Object obj = dataStore.CreateConnection("",  "",  "");
+			if (obj == null) {
+				print("Could not create a connection with Firebase.  PhantomBot now shutting down...");
+				System.exit(0);
+			}	
+			
 		} else {
 			dataStore = SqliteStore.instance();
 			/** Create indexes. */
@@ -1311,6 +1320,32 @@ public class PhantomBot implements Listener {
                 com.gmt2001.Console.err.printStackTrace(ex);
             }
         }
+        
+        /** Setup for MySql */
+        if (message.equalsIgnoreCase("firebasesetup")) {
+            try {
+                print("");
+                print("PhantomBot Firebase setup.");
+                print("");
+
+                com.gmt2001.Console.out.print("Please enter your Firebase base URL: ");
+                String baseUrl = System.console().readLine().trim();
+                this.firebasePath = baseUrl;
+
+                com.gmt2001.Console.out.print("Please enter your Firebase Auth Key: ");
+                String key = System.console().readLine().trim();
+                this.firebaseOauth = key;
+
+                dataStoreType = "FirebaseStore";
+
+                print("PhantomBot Firebase setup done.");
+                changed = true;
+                
+            } catch (NullPointerException ex) {
+                com.gmt2001.Console.err.printStackTrace(ex);
+            }
+        }        
+        
 
         /** Setup for GameWisp */
         if (message.equalsIgnoreCase("gamewispsetup")) {
@@ -1481,6 +1516,8 @@ public class PhantomBot implements Listener {
                     data += "mysqlname=" + mySqlName + "\r\n";
                     data += "mysqluser=" + mySqlUser + "\r\n";
                     data += "mysqlpass=" + mySqlPass + "\r\n";
+                    data += "firebaseurl=" + firebasePath + "\r\n";
+                    data += "firebaseauth=" + firebaseOauth + "\r\n";
                     data += "twitterUser=" + twitterUsername + "\r\n";
                     data += "twitter_consumer_key=" + twitterConsumerToken + "\r\n";
                     data += "twitter_consumer_secret=" + twitterConsumerSecret + "\r\n";
@@ -1670,6 +1707,41 @@ public class PhantomBot implements Listener {
             com.gmt2001.Console.err.println("Failed to move phantombot.db to phantombot.db.backup: " + ex.getMessage());
         }
         print("SQLite to MySQL Conversion is Complete");
+    }
+    
+    private void sqlite2Firebase() {
+    	print("Performing SQLite to Firebase conversion...");
+    	SqliteStore sqlite = SqliteStore.instance();
+    	FirebaseStore firebase = FirebaseStore.instance(firebaseOauth, firebasePath);
+    	
+        File backupFile = new File("phantombot.db.backup");
+        if (backupFile.exists()) {
+            print("A phantombot.db.backup file already exists. Please rename or remove this file first.");
+            print("Exiting PhantomBot");
+            System.exit(0);
+        }
+    	
+    	for (String table : sqlite.GetFileList()) {
+    		print("Converting Table: " + table);
+    		String[] sections = sqlite.GetCategoryList(table);
+    		for (String section : sections) {
+    			String[] keys = sqlite.GetKeyList(table, section);
+    			for (String key : keys) {
+    				String value = sqlite.GetString(table,  section,  key);
+    				firebase.SetString(table, section, key, value);
+    			}
+    		}
+    	}
+        sqlite.CloseConnection();
+        print("Finished Converting Tables.");
+        print("Moving phantombot.db to phantombot.db.backup");
+
+        try {
+            FileUtils.moveFile(new java.io.File("phantombot.db"), new java.io.File("phantombot.db.backup"));
+        } catch (IOException ex) {
+            com.gmt2001.Console.err.println("Failed to move phantombot.db to phantombot.db.backup: " + ex.getMessage());
+        }        
+        print("SQLite to Firebase Conversion is Complete");        
     }
 
     /** Convert iniStore to MySql */
@@ -1873,6 +1945,9 @@ public class PhantomBot implements Listener {
 	    String mySqlUser = "";
 	    String mySqlPass = "";
     
+	    String firebasePath = "";
+	    String firebaseAuth = "";
+	    
 	    /** Twitter Information */
 	    String twitterUsername = "";
 	    String twitterAccessToken = "";
@@ -1933,6 +2008,8 @@ public class PhantomBot implements Listener {
                     + "    [mysqlname=<MySQL database name>]\r\n"
                     + "    [mysqluser=<MySQL username>]\r\n"
                     + "    [mysqlpass=<MySQL password>]\r\n"
+                    + "    [firebasepath=<Firebase Base Path>]\r\n"
+                    + "    [firebaseauth=<Firebase Auth Token>]\r\n"
                     + "    [datastore=<IniStore|TempStore|SqliteStore|MySQLStore>] \r\n"
                     + "    [datastoreconfig=<IniStore Folder Name|SqliteStore config file>]\r\n\r\n"
                     + "DataStore Types:\r\n"
@@ -2012,6 +2089,14 @@ public class PhantomBot implements Listener {
                     }
                     if (line.startsWith("mysqlpass=") && line.length() > 11) {
                         mySqlPass = line.substring(10);
+                    }
+                    if (line.startsWith("firebaseurl=") && line.length() > 13) {
+System.out.println("Has firebaseurl: " + line.substring(12));
+                    	firebasePath = line.substring(12);                    	
+                    }
+                    if (line.startsWith("firebaseauth=") && line.length() > 14) {
+System.out.println("Has firebaseauth: " + line.substring(13));
+                    	firebaseAuth = line.substring(13);
                     }
                     if (line.startsWith("ytauth=") && line.length() > 8) {
                         youtubeOAuth = line.substring(7);
@@ -2308,6 +2393,18 @@ public class PhantomBot implements Listener {
                         changed = true;
                     }
                 }
+                if (arg.startsWith("firebaseurl=") && arg.length() > 13) {
+                	if (!firebasePath.equals(arg.substring(12))) {
+                		firebasePath = arg.substring(12);
+                		changed = true;
+                	}
+                }                
+                if (arg.startsWith("firebaseauth=") && arg.length() > 14) {
+                	if (!firebaseAuth.equals(arg.substring(13))) {
+                		firebaseAuth = arg.substring(13);
+                		changed = true;
+                	}
+                }                
                 if (arg.startsWith("gamewispauth=") && arg.length() > 14) {
                     if (!gameWispOAuth.equals(arg.substring(13))) {
                         gameWispOAuth = arg.substring(13);
@@ -2540,6 +2637,8 @@ public class PhantomBot implements Listener {
             data += "mysqlname=" + mySqlName + "\r\n";
             data += "mysqluser=" + mySqlUser + "\r\n";
             data += "mysqlpass=" + mySqlPass + "\r\n";
+            data += "firebaseurl=" + firebasePath + "\r\n";
+            data += "firebaseauth=" + firebaseAuth + "\r\n";
             data += "twitterUser=" + twitterUsername + "\r\n";
             data += "twitter_consumer_key=" + twitterConsumerToken + "\r\n";
             data += "twitter_consumer_secret=" + twitterConsumerSecret + "\r\n";
@@ -2556,7 +2655,7 @@ public class PhantomBot implements Listener {
 		dataStoreConfig, youtubeOAuth, webEnabled, musicEnabled, useHttps, keyStorePath, keyStorePassword, keyPassword, twitchAlertsKey, 
 		twitchAlertsLimit, streamTipOAuth, streamTipLimit, gameWispOAuth, gameWispRefresh, panelUsername, panelPassword, timeZone, twitterUsername,
 		twitterConsumerToken, twitterConsumerSecret, twitterSecretToken, twitterAccessToken, mySqlHost, mySqlPort, mySqlConn, mySqlPass, mySqlUser,
-		mySqlName, webOAuth, webOAuthThro, youtubeOAuthThro, youtubeKey, twitchCacheReady, httpsPassword, httpsFileName, devCommands);
+		mySqlName, firebaseAuth, firebasePath, webOAuth, webOAuthThro, youtubeOAuthThro, youtubeKey, twitchCacheReady, httpsPassword, httpsFileName, devCommands);
     }
 
 	public void updateGameWispTokens(String[] newTokens) {
@@ -2604,6 +2703,8 @@ public class PhantomBot implements Listener {
         data += "mysqlname=" + mySqlName + "\r\n";
         data += "mysqluser=" + mySqlUser + "\r\n";
         data += "mysqlpass=" + mySqlPass + "\r\n";
+        data += "firebaseurl=" + firebasePath + "\r\n";
+        data += "firebaseauth=" + firebaseOauth + "\r\n";
         data += "twitterUser=" + twitterUsername + "\r\n";
         data += "twitter_consumer_key=" + twitterConsumerToken + "\r\n";
         data += "twitter_consumer_secret=" + twitterConsumerSecret + "\r\n";
