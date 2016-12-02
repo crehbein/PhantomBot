@@ -255,7 +255,7 @@ public class FirebaseStore extends DataStore {
     	
     	try {
     		
-    		fName = validateFname(fName);
+    		fName = validateFname(fName);    		    	
     		
     		key = normalizeKey(key);
     		
@@ -270,8 +270,13 @@ public class FirebaseStore extends DataStore {
     		
     		String value = (String)response.getBody().get(key);
     		
+    		// Sigh
     		if ("NaN".equalsIgnoreCase(value)) {
     			return "0";
+    		}
+    		
+    		if ("null".equalsIgnoreCase(value)) {
+    			return null;
     		}
     		
     		return value;
@@ -291,7 +296,7 @@ public class FirebaseStore extends DataStore {
     public void SetString(String fName, String section, String key, String value) {
     	
     	try {
-    		
+    		    		
     		fName = validateFname(fName);
     		
     		key = normalizeKey(key);
